@@ -1,0 +1,419 @@
+PRODUCT REQUIREMENTS DOCUMENT (PRD)
+Campus Event Attendance Prediction & Engagement Intelligence Dashboard
+1. Project Overview
+Project Name
+
+Campus Event Attendance Prediction & Engagement Intelligence System
+
+Project Type
+
+End-to-end Machine Learning system with:
+
+Data generation
+
+Model training and evaluation
+
+Model lifecycle management
+
+Interactive prediction dashboard
+
+Domain
+
+Higher Education / University Event Management
+
+2. Problem Statement
+
+Universities conduct multiple academic and co-curricular events such as workshops, guest lectures, and career talks. However, event planning is largely intuition-driven, resulting in:
+
+Poor attendance forecasting
+
+Inefficient promotion strategies
+
+Low student engagement
+
+Wasted logistical resources
+
+There is no structured, data-driven mechanism to predict how many students will attend an event before it happens, nor any system that explains why attendance might be high or low.
+
+Core Problem
+
+How can a university predict expected attendance for an event before it happens, and simultaneously understand which factors influence engagement?
+
+3. Solution Overview
+
+This project proposes a machine-learning–driven decision-support system that:
+
+Learns from historical and survey-based engagement data
+
+Predicts expected attendance for new events
+
+Explains why attendance is predicted to be high or low
+
+Provides actionable recommendations to improve engagement
+
+Visualizes both data patterns and prediction outcomes in a professional dashboard
+
+4. Data Generation & Assumptions
+Why Synthetic Data Was Used
+
+Real university engagement data is:
+
+Sensitive
+
+Not publicly available
+
+Inconsistent across institutions
+
+To ensure reproducibility and realism, the dataset was synthetically generated using survey-inspired logic.
+
+Data Generation Methodology
+
+The dataset simulates 5,000 university events, generated programmatically with controlled randomness.
+
+Data Sources (Conceptual)
+
+The generation logic is inspired by:
+
+Student engagement surveys
+
+Event feedback forms
+
+Academic scheduling patterns
+
+Promotion and incentive behaviors
+
+Key Feature Categories
+1. Event Context
+
+Domain (Tech, Law, Business, Design, Music)
+
+Event Type (Workshop, Guest Lecture, Career Talk)
+
+Speaker Type (Industry, Faculty, Alumni)
+
+Duration (hours)
+
+Day Type (Weekday / Weekend)
+
+Time Slot (Morning / Afternoon / Evening)
+
+2. Promotion & Incentives
+
+Promotion Days (numeric)
+
+Certificate Availability (binary)
+
+3. Engagement Drivers
+
+Interactivity Level (continuous scale 0–1)
+
+4. Engagement Frictions (Survey-Based)
+
+Simulated Likert-scale responses (1–5), one-hot encoded:
+
+Relevance Friction
+
+Schedule Friction
+
+Fatigue Friction
+
+Promotion Friction
+
+Social Friction
+
+Format Friction
+
+These represent real student complaints collected via surveys.
+
+Target Variable
+
+Expected_Attendance
+
+This value is computed using:
+
+Base attendance
+
+Penalties from friction scores
+
+Bonuses from incentives and interactivity
+
+Contextual effects (timing, speaker type)
+
+Controlled Gaussian noise to simulate human uncertainty
+
+5. Machine Learning Models Used
+Why Traditional ML Models Were Chosen
+
+The project explicitly avoids neural networks to:
+
+Maintain interpretability
+
+Reduce overfitting on synthetic data
+
+Align with course constraints
+
+Models Implemented
+1. Linear Regression
+
+Baseline model
+
+Captures linear relationships
+
+Highly interpretable
+
+Fast and stable
+
+2. Support Vector Regression (SVR)
+
+Captures non-linear patterns
+
+Effective with scaled numerical data
+
+Robust to noise
+
+3. Random Forest Regressor
+
+Captures complex feature interactions
+
+Handles non-linearity and feature importance
+
+Less interpretable but powerful
+
+6. Model Training Pipeline
+Pipeline Flow
+SQLite Database
+   ↓
+Feature Selection
+   ↓
+Categorical Encoding (OneHotEncoder)
+   ↓
+Numerical Scaling (StandardScaler)
+   ↓
+Train/Test Split (80/20)
+   ↓
+Model Training
+   ↓
+Evaluation
+   ↓
+Model Versioning & Registry
+
+Key Design Decisions
+
+ColumnTransformer ensures consistent encoding
+
+Pipeline abstraction prevents data leakage
+
+SQL-first design enables real-world deployment
+
+Model versioning ensures lifecycle tracking
+
+7. Model Evaluation & Results
+Metrics Used
+
+RMSE (Error magnitude)
+
+MAE (Average deviation)
+
+R² (Explained variance)
+
+Performance Summary
+Model	RMSE	MAE	R²
+Linear Regression	~14.76	~12.22	~0.76
+SVR	~15.42	~12.68	~0.74
+Random Forest	~18.24	~14.76	~0.63
+Model Selection Justification
+
+Linear Regression was selected as the final model because:
+
+Highest R² score
+
+Lowest error metrics
+
+Stable predictions
+
+Easier interpretability for administrators
+
+Better generalization on synthetic data
+
+This aligns with the project’s goal of decision support, not black-box prediction.
+
+8. Model Versioning & Lifecycle Management
+Versioning Strategy
+
+Each training run:
+
+Automatically increments model version
+
+Stores model in:
+
+artifacts/model_vX_timestamp/
+
+
+Updates:
+
+artifacts/latest_model.joblib
+
+
+Logs metadata in:
+
+artifacts/model_registry.json
+
+Metadata Stored
+
+Version number
+
+Training timestamp
+
+Model type
+
+Evaluation metrics
+
+Feature schema
+
+9. Dashboard Overview
+Purpose
+
+The dashboard serves as the user-facing interface for:
+
+Data exploration
+
+Model interpretation
+
+Real-time predictions
+
+Actionable recommendations
+
+10. Dashboard Functional Requirements
+10.1 Project Overview Section
+
+Project description
+
+Problem statement summary
+
+Current model version and timestamp
+
+Model performance metrics
+
+10.2 Training Data Visualizations (Dynamic)
+
+Mandatory interactive charts:
+
+Attendance distribution
+
+Attendance by domain
+
+Interactivity vs attendance
+
+Promotion days vs attendance
+
+Friction impact analysis
+
+Charts update dynamically from SQLite.
+
+10.3 Model Comparison Section
+
+Side-by-side comparison of models
+
+Metric-based justification
+
+Highlight selected model
+
+11. Prediction Module (Core Feature)
+Input Form
+
+User inputs:
+
+Domain
+
+Event Type
+
+Speaker Type
+
+Duration
+
+Day Type
+
+Time Slot
+
+Promotion Days
+
+Certificate Flag
+
+Interactivity Level
+
+All inputs validated.
+
+Prediction Output
+
+Dashboard must display:
+
+Predicted Expected Attendance (numeric)
+
+Engagement category (Low / Medium / High)
+
+Visual indicator (bar, gauge, or scale)
+
+12. Intelligent Recommendations Engine
+
+This is critical for full marks.
+
+After prediction, the dashboard should generate context-aware recommendations, such as:
+
+“Increasing promotion duration by 5 days could improve attendance”
+
+“Industry speakers show higher engagement for this domain”
+
+“Evening weekday slots reduce attendance historically”
+
+“Low interactivity is a major risk factor”
+
+These recommendations are:
+
+Rule-based
+
+Derived from training data trends
+
+Fully explainable
+
+13. Prediction Visualization
+
+Prediction results should also be visualized:
+
+Predicted attendance vs historical average
+
+Confidence band
+
+Feature contribution highlights (simplified)
+
+14. Backend–Frontend Integration
+Integration Rule
+
+The dashboard must not reimplement ML logic.
+
+Instead:
+
+Loads artifacts/latest_model.joblib
+
+Sends raw input data
+
+Receives prediction
+
+Logs optional prediction to SQLite
+
+This ensures:
+
+Model updates require no UI changes
+
+Production-ready architecture
+
+15. Non-Functional Requirements
+
+Zero runtime crashes
+
+Fast response (<1s)
+
+Clear error messages
+
+Clean UX
+
+Modular code
