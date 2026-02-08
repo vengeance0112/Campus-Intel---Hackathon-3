@@ -1,0 +1,17 @@
+{
+    "latest_version": 2,
+    "models": [
+        {
+            "version": 1,
+            "model_name": "Linear Regression",
+            "timestamp": "2026-02-08_19-41-56",
+            "path": "artifacts\\model_v1_2026-02-08_19-41-56"
+        },
+        {
+            "version": 2,
+            "model_name": "Linear Regression",
+            "timestamp": "2026-02-08_19-42-22",
+            "path": "artifacts\\model_v2_2026-02-08_19-42-22"
+        }
+    ]
+}
