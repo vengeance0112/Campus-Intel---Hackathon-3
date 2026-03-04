@@ -7,12 +7,14 @@ rng = np.random.default_rng(42)
 # number of synthetic events
 N = 5000
 
+
 def make_ohe(base, size=N):
     r = rng.integers(1, 6, size)
     d = {}
     for k in range(1, 6):
         d[f"{base}_{k}"] = (r == k).astype(int)
     return d, r
+
 
 # domains in the university
 domains = rng.choice(
@@ -82,39 +84,66 @@ for block in [relevance_ohe, schedule_ohe, fatigue_ohe,
 base_attendance = rng.integers(70, 115, N)
 score = base_attendance.astype(float)
 
+
 def scale(raw, wt):
     return (raw - 1) / 4 * wt
 
+
+# random friction weights (instead of fixed constants)
+relevance_weight = rng.integers(24, 32)
+schedule_weight = rng.integers(22, 30)
+fatigue_weight = rng.integers(18, 26)
+promotion_weight = rng.integers(14, 22)
+social_weight = rng.integers(8, 16)
+format_weight = rng.integers(10, 18)
+
+
 # penalties (from survey frictions)
-score -= scale(relevance_raw, 28)
-score -= scale(schedule_raw, 25)
-score -= scale(fatigue_raw, 22)
-score -= scale(promotion_raw, 18)
-score -= scale(social_raw, 12)
-score -= scale(format_raw, 15)
+score -= scale(relevance_raw, relevance_weight)
+score -= scale(schedule_raw, schedule_weight)
+score -= scale(fatigue_raw, fatigue_weight)
+score -= scale(promotion_raw, promotion_weight)
+score -= scale(social_raw, social_weight)
+score -= scale(format_raw, format_weight)
 
-# bonuses
-score += certificate_flag * 22
-score += interactivity_level * 32
-score += (promotion_days > 7).astype(int) * 14
 
-# interaction effects (structured signal)
-score += interactivity_level * promotion_days * 1.2
+# randomized bonuses
+certificate_bonus = rng.integers(18, 26)
+interactivity_bonus = rng.integers(28, 36)
+promotion_bonus = rng.integers(10, 18)
+
+score += certificate_flag * certificate_bonus
+score += interactivity_level * interactivity_bonus
+score += (promotion_days > 7).astype(int) * promotion_bonus
+
+
+# interaction effects
+interaction_weight = rng.uniform(1.0, 1.5)
+score += interactivity_level * promotion_days * interaction_weight
+
 
 # contextual effects
-score -= ((day_type == "Weekday") & (time_slot == "Evening")).astype(int) * 15
-score += ((speaker_types == "Industry")).astype(int) * 12
+weekday_evening_penalty = rng.integers(12, 20)
+industry_speaker_bonus = rng.integers(8, 15)
+
+score -= ((day_type == "Weekday") & (time_slot == "Evening")).astype(int) * weekday_evening_penalty
+score += ((speaker_types == "Industry")).astype(int) * industry_speaker_bonus
+
 
 # domain popularity boost
-score += ((domains == "Tech") | (domains == "Business")).astype(int) * 8
+domain_boost = rng.integers(6, 12)
+score += ((domains == "Tech") | (domains == "Business")).astype(int) * domain_boost
+
 
 # noise (human uncertainty)
 score += rng.normal(0, 6, N)
+
 
 # final attendance
 df["Expected_Attendance"] = np.clip(score.astype(int), 10, None)
 
 
+# normalize attendance to derive engagement level
 z = (df["Expected_Attendance"] - df["Expected_Attendance"].min()) / (
     df["Expected_Attendance"].max() - df["Expected_Attendance"].min()
 )
@@ -126,4 +155,5 @@ df["Engagement_Level"] = np.where(
 
 
 df.to_csv("Campus_Event_Engagement_Synthetic.csv", index=False)
+
 print("Dataset generated successfully.")
