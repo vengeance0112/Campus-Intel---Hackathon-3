@@ -1,47 +1,48 @@
-import sqlite3
 import pandas as pd
 import numpy as np
-import joblib
-import json
 import os
-from datetime import datetime
+import json
+import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.pipeline import Pipeline
-
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# ------------------------------------------------------------
-# Step 1: Load data from SQLite database
-# ------------------------------------------------------------
-DB_PATH = "database/campus_events.db"
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
 
-conn = sqlite3.connect(DB_PATH)
-df = pd.read_sql("SELECT * FROM event_attendance", conn)
-conn.close()
+from xgboost import XGBRegressor
 
-print(f"Loaded dataset shape: {df.shape}")
 
-# ------------------------------------------------------------
-# Step 2: Define target and features
-# ------------------------------------------------------------
-TARGET_COL = "Expected_Attendance"
+# -------------------------
+# Paths
+# -------------------------
 
-X = df.drop(columns=["Expected_Attendance", "Engagement_Level"])
+ARTIFACT_DIR = "artifacts"
+REGISTRY_PATH = os.path.join(ARTIFACT_DIR, "model_registry.json")
+
+
+# -------------------------
+# Load Dataset
+# -------------------------
+
+df = pd.read_csv("Campus_Event_Engagement_Synthetic.csv")
+
 y = df["Expected_Attendance"]
 
-print("Feature matrix shape:", X.shape)
-print("Target vector shape:", y.shape)
+X = df.drop(columns=["Expected_Attendance", "Engagement_Level"])
 
-# ------------------------------------------------------------
-# Step 3: Identify categorical and numerical columns
-# ------------------------------------------------------------
+
+# -------------------------
+# Columns
+# -------------------------
+
 categorical_cols = [
     "Domain",
     "Event_Type",
@@ -50,174 +51,174 @@ categorical_cols = [
     "Time_Slot"
 ]
 
-numerical_cols = [
-    "Duration_Hours",
-    "Promotion_Days",
-    "Certificate_Flag",
-    "Interactivity_Level"
-] + [col for col in X.columns if "Friction_" in col]
+numerical_cols = [c for c in X.columns if c not in categorical_cols]
 
-# ------------------------------------------------------------
-# Step 4: Build preprocessing pipeline
-# ------------------------------------------------------------
+
+# -------------------------
+# Preprocessing
+# -------------------------
+
 preprocessor = ColumnTransformer(
     transformers=[
-        ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_cols),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
         ("num", StandardScaler(), numerical_cols)
     ]
 )
 
-# ------------------------------------------------------------
-# Step 5: Train-test split
-# ------------------------------------------------------------
+
+# -------------------------
+# Train Test Split
+# -------------------------
+
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
-print("Train size:", X_train.shape)
-print("Test size :", X_test.shape)
 
-# ------------------------------------------------------------
-# Step 6: Define models
-# ------------------------------------------------------------
+# -------------------------
+# Models
+# -------------------------
+
 models = {
-    "Linear Regression": LinearRegression(),
-    "Support Vector Regression": SVR(
-        kernel="rbf",
-        C=10,
-        gamma="scale",
-        epsilon=0.1
-    ),
-    "Random Forest": RandomForestRegressor(
+
+    "LinearRegression": LinearRegression(),
+
+    "Ridge": Ridge(),
+
+    "Lasso": Lasso(),
+
+    "ElasticNet": ElasticNet(),
+
+    "DecisionTree": DecisionTreeRegressor(),
+
+    "RandomForest": RandomForestRegressor(n_estimators=150),
+
+    "GradientBoosting": GradientBoostingRegressor(),
+
+    "KNN": KNeighborsRegressor(),
+
+    "SVR": SVR(),
+
+    "XGBoost": XGBRegressor(
         n_estimators=200,
-        max_depth=12,
-        random_state=42,
-        n_jobs=-1
+        learning_rate=0.05,
+        max_depth=6
     )
 }
 
-results = []
-best_model = None
-best_model_name = None
-best_r2 = -np.inf
-best_metrics = {}
 
-# ------------------------------------------------------------
-# Step 7: Train and evaluate models
-# ------------------------------------------------------------
-for name, model in models.items():
-    print(f"\nTraining {name}...")
+# -------------------------
+# Load Registry
+# -------------------------
 
-    pipeline = Pipeline(
-        steps=[
-            ("preprocessor", preprocessor),
-            ("model", model)
-        ]
-    )
+if os.path.exists(REGISTRY_PATH):
 
-    pipeline.fit(X_train, y_train)
-    y_pred = pipeline.predict(X_test)
-
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    mae = mean_absolute_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    print(f"{name} Performance:")
-    print(f"RMSE: {rmse:.2f}")
-    print(f"MAE : {mae:.2f}")
-    print(f"R²  : {r2:.4f}")
-
-    results.append({
-        "Model": name,
-        "RMSE": rmse,
-        "MAE": mae,
-        "R2": r2
-    })
-
-    if r2 > best_r2:
-        best_r2 = r2
-        best_model = pipeline
-        best_model_name = name
-        best_metrics = {
-            "rmse": rmse,
-            "mae": mae,
-            "r2": r2
-        }
-
-# ------------------------------------------------------------
-# Step 8: Results summary
-# ------------------------------------------------------------
-results_df = pd.DataFrame(results)
-print("\nModel Comparison:")
-print(results_df)
-
-# ------------------------------------------------------------
-# Step 9: Model Versioning (ADDED – no flow change)
-# ------------------------------------------------------------
-ARTIFACT_DIR = "artifacts"
-REGISTRY_PATH = os.path.join(ARTIFACT_DIR, "model_registry.json")
-
-os.makedirs(ARTIFACT_DIR, exist_ok=True)
-
-# Load or initialize registry
-if os.path.exists(REGISTRY_PATH) and os.path.getsize(REGISTRY_PATH) > 0:
     with open(REGISTRY_PATH, "r") as f:
         registry = json.load(f)
+
 else:
+
     registry = {
-        "latest_version": 0,
-        "models": []
+        "models": {},
+        "best_model": None
     }
 
-# Create new version
-new_version = registry["latest_version"] + 1
-timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-version_name = f"model_v{new_version}_{timestamp}"
-version_path = os.path.join(ARTIFACT_DIR, version_name)
-os.makedirs(version_path, exist_ok=True)
+best_r2 = -999
+best_model = None
+best_version = None
+best_path = None
 
-# ------------------------------------------------------------
-# Step 10: Save model + metadata
-# ------------------------------------------------------------
-MODEL_PATH = os.path.join(version_path, "model.joblib")
-METADATA_PATH = os.path.join(version_path, "metadata.json")
 
-joblib.dump(best_model, MODEL_PATH)
+# -------------------------
+# Train Models
+# -------------------------
 
-metadata = {
-    "version": new_version,
-    "timestamp": timestamp,
-    "model_name": best_model_name,
-    "metrics": best_metrics,
-    "num_training_rows": len(X_train),
-    "categorical_features": categorical_cols,
-    "numerical_features": numerical_cols
+for name, model in models.items():
+
+    pipeline = Pipeline([
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ])
+
+    pipeline.fit(X_train, y_train)
+
+    preds = pipeline.predict(X_test)
+
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    mae = mean_absolute_error(y_test, preds)
+    r2 = r2_score(y_test, preds)
+
+    print(f"{name} | RMSE: {rmse:.2f} | MAE: {mae:.2f} | R2: {r2:.3f}")
+
+    # -------------------------
+    # Versioning Logic
+    # -------------------------
+
+    model_dir = os.path.join(ARTIFACT_DIR, name)
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    existing_versions = [
+        f for f in os.listdir(model_dir)
+        if f.startswith("v") and f.endswith(".joblib")
+    ]
+
+    version = len(existing_versions) + 1
+
+    model_path = os.path.join(model_dir, f"v{version}.joblib")
+
+    joblib.dump(pipeline, model_path)
+
+
+    # -------------------------
+    # Update Registry
+    # -------------------------
+
+    if name not in registry["models"]:
+        registry["models"][name] = {"versions": []}
+
+    registry["models"][name]["versions"].append({
+
+        "version": version,
+        "path": model_path,
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2
+
+    })
+
+
+    # -------------------------
+    # Track Best Model
+    # -------------------------
+
+    if r2 > best_r2:
+
+        best_r2 = r2
+        best_model = name
+        best_version = version
+        best_path = model_path
+
+
+# -------------------------
+# Save Best Model
+# -------------------------
+
+registry["best_model"] = {
+
+    "model": best_model,
+    "version": best_version,
+    "path": best_path,
+    "r2": best_r2
+
 }
 
-with open(METADATA_PATH, "w") as f:
-    json.dump(metadata, f, indent=4)
-
-# Update registry
-registry["latest_version"] = new_version
-registry["models"].append({
-    "version": new_version,
-    "model_name": best_model_name,
-    "timestamp": timestamp,
-    "path": version_path
-})
 
 with open(REGISTRY_PATH, "w") as f:
     json.dump(registry, f, indent=4)
 
-# Also keep latest-model shortcut for dashboard
-joblib.dump(best_model, os.path.join(ARTIFACT_DIR, "latest_model.joblib"))
 
-print("\nBest model selected:", best_model_name)
-print(f"Model version saved → {version_name}")
-print("Latest model pointer updated → artifacts/latest_model.joblib")
-
-print("\nTraining pipeline completed successfully.")
+print("\nBest Model:", best_model)
+print("Version:", best_version)
+print("Saved at:", best_path)
