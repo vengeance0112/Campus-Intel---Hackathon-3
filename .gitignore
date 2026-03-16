@@ -1,0 +1,8 @@
+artifacts/
+!artifacts/model_registry.json
+saved_model/
+*.joblib
+*.pkl
+*.db
+__pycache__/
+.venv/
