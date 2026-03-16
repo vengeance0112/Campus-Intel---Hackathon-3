@@ -1,126 +1,131 @@
 import sqlite3
 import pandas as pd
 import joblib
-
 import json
 import os
 
-def load_latest_model():
-    REGISTRY_PATH = "artifacts/model_registry.json"
 
-    if not os.path.exists(REGISTRY_PATH):
-        raise FileNotFoundError("Model registry not found.")
+REGISTRY_PATH = "artifacts/model_registry.json"
 
-    with open(REGISTRY_PATH, "r") as f:
+
+def load_model(model_name,version):
+
+    with open(REGISTRY_PATH,"r") as f:
         registry = json.load(f)
 
-    if not registry["models"]:
-        raise ValueError("No models registered yet.")
+    versions = registry["models"][model_name]["versions"]
 
-    latest_model_entry = registry["models"][-1]
-    model_path = os.path.join(latest_model_entry["path"], "model.joblib")
+    for v in versions:
+        if v["version"] == version:
+            return joblib.load(v["path"])
 
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at {model_path}")
-
-    print(f"Loaded model version v{latest_model_entry['version']} "
-          f"({latest_model_entry['model_name']})")
-
-    return joblib.load(model_path)
-
-# ------------------------------
-# Step 1: Load trained pipeline
-# ------------------------------
-model_pipeline = load_latest_model()
+    raise ValueError("Model version not found")
 
 
-print("Model pipeline loaded successfully.")
+# ---------------------------
+# Select Model
+# ---------------------------
+MODEL_NAME = "LinearRegression"
+MODEL_VERSION = 1
 
-# ------------------------------
-# Step 2: Raw event input
-# ------------------------------
-new_event = {
-    "Domain": "Tech",
-    "Event_Type": "Workshop",
-    "Speaker_Type": "Industry",
-    "Duration_Hours": 2.0,
-    "Day_Type": "Weekday",
-    "Time_Slot": "Afternoon",
-    "Promotion_Days": 30,
-    "Certificate_Flag": 1,
-    "Interactivity_Level": 0.75,
+model_pipeline = load_model(MODEL_NAME,MODEL_VERSION)
 
-    # base friction levels (1–5)
-    "Promotion_Friction": 3,
-    "Fatigue_Friction": 3,
-    "Format_Friction": 3,
-    "Social_Friction": 3,
-    "Schedule_Friction": 3,
-    "Relevance_Friction": 3
+print(f"Loaded {MODEL_NAME} v{MODEL_VERSION}")
+
+
+# ---------------------------
+# Example Event
+# ---------------------------
+event = {
+
+"Domain":"Tech",
+"Event_Type":"Workshop",
+"Speaker_Type":"Industry",
+"Duration_Hours":2.0,
+"Day_Type":"Weekday",
+"Time_Slot":"Afternoon",
+"Promotion_Days":20,
+"Certificate_Flag":1,
+"Interactivity_Level":0.8,
+
+"Promotion_Friction":3,
+"Fatigue_Friction":3,
+"Format_Friction":2,
+"Social_Friction":3,
+"Schedule_Friction":2,
+"Relevance_Friction":2
 }
 
-# ------------------------------
-# Step 3: Expand friction → one-hot
-# ------------------------------
-friction_types = [
-    "Promotion_Friction",
-    "Fatigue_Friction",
-    "Format_Friction",
-    "Social_Friction",
-    "Schedule_Friction",
-    "Relevance_Friction"
-]
 
-expanded = {}
+# ---------------------------
+# Expand OneHot
+# ---------------------------
+expanded={}
 
-for ft in friction_types:
-    for level in range(1, 6):
-        expanded[f"{ft}_{level}"] = 1 if new_event[ft] == level else 0
+for ft in [
+"Promotion_Friction",
+"Fatigue_Friction",
+"Format_Friction",
+"Social_Friction",
+"Schedule_Friction",
+"Relevance_Friction"
+]:
 
-# Remove base friction keys
-for ft in friction_types:
-    new_event.pop(ft)
+    for level in range(1,6):
+        expanded[f"{ft}_{level}"] = 1 if event[ft]==level else 0
 
-# Merge expanded features
-new_event.update(expanded)
 
-# Convert to DataFrame
-input_df = pd.DataFrame([new_event])
+for ft in [
+"Promotion_Friction",
+"Fatigue_Friction",
+"Format_Friction",
+"Social_Friction",
+"Schedule_Friction",
+"Relevance_Friction"
+]:
+    event.pop(ft)
 
-# ------------------------------
-# Step 4: Predict
-# ------------------------------
-predicted_attendance = model_pipeline.predict(input_df)[0]
 
-print(f"Predicted Expected Attendance: {int(predicted_attendance)}")
+event.update(expanded)
 
-# ------------------------------
-# Step 5: Store prediction
-# ------------------------------
+input_df = pd.DataFrame([event])
+
+
+# ---------------------------
+# Predict
+# ---------------------------
+prediction = model_pipeline.predict(input_df)[0]
+
+print("Predicted Attendance:",int(prediction))
+
+
+# ---------------------------
+# Store Result
+# ---------------------------
 conn = sqlite3.connect("database/campus_events.db")
-cursor = conn.cursor()
+cur = conn.cursor()
 
-cursor.execute("""
+cur.execute("""
 INSERT INTO event_attendance (
-    Domain, Event_Type, Speaker_Type, Duration_Hours,
-    Day_Type, Time_Slot, Promotion_Days, Certificate_Flag,
-    Interactivity_Level, Expected_Attendance
+Domain,Event_Type,Speaker_Type,Duration_Hours,
+Day_Type,Time_Slot,Promotion_Days,Certificate_Flag,
+Interactivity_Level,Expected_Attendance
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-""", (
-    input_df["Domain"][0],
-    input_df["Event_Type"][0],
-    input_df["Speaker_Type"][0],
-    input_df["Duration_Hours"][0],
-    input_df["Day_Type"][0],
-    input_df["Time_Slot"][0],
-    input_df["Promotion_Days"][0],
-    input_df["Certificate_Flag"][0],
-    input_df["Interactivity_Level"][0],
-    int(predicted_attendance)
+VALUES (?,?,?,?,?,?,?,?,?,?)
+""",(
+input_df["Domain"][0],
+input_df["Event_Type"][0],
+input_df["Speaker_Type"][0],
+input_df["Duration_Hours"][0],
+input_df["Day_Type"][0],
+input_df["Time_Slot"][0],
+input_df["Promotion_Days"][0],
+input_df["Certificate_Flag"][0],
+input_df["Interactivity_Level"][0],
+int(prediction)
 ))
 
 conn.commit()
 conn.close()
 
-print("Prediction stored successfully in SQLite database.")
+print("Prediction stored in database.")
