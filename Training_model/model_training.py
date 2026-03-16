@@ -19,6 +19,9 @@ from sklearn.svm import SVR
 
 from xgboost import XGBRegressor
 
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score, classification_report
+
 
 # -------------------------
 # Paths
@@ -222,3 +225,48 @@ with open(REGISTRY_PATH, "w") as f:
 print("\nBest Model:", best_model)
 print("Version:", best_version)
 print("Saved at:", best_path)
+
+
+# ========================
+# ENGAGEMENT CLASSIFICATION
+# ========================
+
+# -------------------------
+# Prepare Classification Data
+# -------------------------
+
+# Derive engagement level from normalized attendance
+y_normalized = (df["Expected_Attendance"] - df["Expected_Attendance"].min()) / (df["Expected_Attendance"].max() - df["Expected_Attendance"].min())
+
+# Categorize into Low, Medium, High
+y_classification = pd.cut(y_normalized, bins=3, labels=["Low", "Medium", "High"], duplicates="drop")
+
+X_class = df.drop(columns=["Expected_Attendance", "Engagement_Level"])
+
+X_train_class, X_test_class, y_train_class, y_test_class = train_test_split(
+    X_class, y_classification, test_size=0.2, random_state=42
+)
+
+
+# -------------------------
+# Naive Bayes Classifier
+# -------------------------
+
+clf_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", GaussianNB())
+])
+
+clf_pipeline.fit(X_train_class, y_train_class)
+
+y_pred_class = clf_pipeline.predict(X_test_class)
+
+accuracy = accuracy_score(y_test_class, y_pred_class)
+
+print("\n" + "="*50)
+print("ENGAGEMENT CLASSIFICATION RESULTS")
+print("="*50)
+print(f"\nNaive Bayes Classifier Accuracy: {accuracy:.3f}")
+print("\nClassification Report:")
+print(classification_report(y_test_class, y_pred_class))
+print("="*50)
