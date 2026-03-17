@@ -8,6 +8,10 @@ import Dashboard from "@/pages/Dashboard";
 import Predictor from "@/pages/Predictor";
 import Analytics from "@/pages/Analytics";
 import Models from "@/pages/Models";
+import Insights from "@/pages/Insights";
+import Pipeline from "@/pages/Pipeline";
+import { SidebarProvider } from "@/contexts/SidebarContext";
+import { CustomCursor } from "@/components/CustomCursor";
 
 function Router() {
   return (
@@ -16,6 +20,8 @@ function Router() {
       <Route path="/predictor" component={Predictor} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/models" component={Models} />
+      <Route path="/insights" component={Insights} />
+      <Route path="/pipeline" component={Pipeline} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -25,8 +31,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Router />
-        <Toaster />
+        <SidebarProvider>
+          <CustomCursor />
+          <Router />
+          <Toaster />
+        </SidebarProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
