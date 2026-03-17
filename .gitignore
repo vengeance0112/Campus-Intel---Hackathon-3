@@ -1,8 +1,71 @@
-artifacts/
-!artifacts/model_registry.json
-saved_model/
-*.joblib
-*.pkl
-*.db
+# ── Python ──────────────────────────────────────────────
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
 .venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── ML Artifacts (models, encoders — NOT committed) ────
+artifacts/*.joblib
+artifacts/*.pkl
+artifacts/best_model.joblib
+artifacts/encoder.joblib
+artifacts/latest_model.joblib
+# Keep model_registry.json (metadata only)
+# Keep model version folders structure but NOT joblib files
+artifacts/**/*.joblib
+artifacts/**/*.pkl
+saved model/
+
+# ── Database ─────────────────────────────────────────────
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+# keep storing_db.py schema script
+
+# ── Environment Variables ─────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Node / Frontend ───────────────────────────────────────
+node_modules/
+Event-Insights-Hub/node_modules/
+Event-Insights-Hub/client/node_modules/
+dist/
+Event-Insights-Hub/dist/
+.cache/
+
+# ── IDE / OS ──────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ──────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Misc ──────────────────────────────────────────────────
+*.zip
+*.tar.gz
+*.rar
+*.pdf
+import_csv.mjs
+import_result.txt
